@@ -2,58 +2,43 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
-#define N 100
 
-float makeAverage(float data[], int cnt);
-float makeVar1(float data[], int cnt);
-float makeVar2(float data[], int cnt, float avg);
+
+void ansFormula1(float, float, float, float *, float *);
+void ansFormula2(float, float, float, float *, float *);
 
 int main()
 {
-	//variables declaration
-	float *data, avg, var1, var2;
-	srand((int)time(NULL));
-	//make random number and sample data
-	data = (float*)malloc(sizeof(float)*N);
-	for(int i = 0 ; i < N ; i++)
-		data[i] = ((float)rand())/RAND_MAX*1000;
+	float a,b,c;
+	float ans1, ans2;
+	scanf("%f%f%f", &a, &b, &c);
 
-	//average
-	avg = makeAverage(data, N);
-	var1 = makeVar1(data, N);
-	var2 = makeVar2(data, N, avg);
+	if(a ==0){
+		printf("a cannot be zero re enter\n");
+		scanf("%f%f%f", &a, &b, &c);
+	} 
 
-	printf("avg: %f, var1: %f, var2: %f\n", avg, var1, var2);
+	ansFormula1(a,b,c, &ans1, &ans2);
+
+	printf("solved with formula 1\n");
+	printf("ans1: %f, ans2: %f\n", ans1, ans2);
+
+	//ansFormula2(a,b,c, &ans1, &ans2);
  }
 
-float makeAverage(float data[], int cnt)
+void ansFormula1(float a, float b, float c, float *ans1, float *ans2)
 {
-	float total=0;
-	for(int i = 0 ; i < cnt ; i++)
-		total += data[i];
-	return total/cnt;
+	float quad;
+	quad = b*b - 4*a*c;
+	quad = sqrt(quad);
+	*ans1 = ((-1)*b - quad) / 2*a;
+	printf("ans1: %f", *ans1);
+	*ans2 = (b - quad) / 2*a;
+
 }
 
-float makeVar1(float data[], int cnt)
+void ansFormula2(float a, float b, float c, float *ans1, float *ans2)
 {
-	float quad = 0, total=0;
-	for(int i = 0 ; i < cnt; i++){
-		quad += (data[i] * data[i]);
-	}
-	for(int i = 0 ; i < cnt; i++){
-		total += data[i];
-	}
-	quad *= cnt; total *= total;
-	return (quad-total)/(cnt*(cnt-1));
+	;
 }
-
-float makeVar2(float data[], int cnt, float avg)
-{
-	float total=0;
-	for(int i = 0 ; i < cnt; i++){
-		total += (data[i] - avg) * (data[i] - avg);
-	}
-	return total / (cnt-1);
-}
-
 
