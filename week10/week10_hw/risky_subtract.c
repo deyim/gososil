@@ -12,21 +12,28 @@ float makeVar2(float data[], int cnt, float avg);
 int main()
 {
 	//variables declaration
-	float *data, avg, var1, var2;
+	float *data, avg, var1, var2, runtime;
+	time_t startTime = 0, endTime = 0;
 	srand((int)time(NULL));
 	//make random number and sample data
 	data = (float*)malloc(sizeof(float)*N);
-	for(int i = 0 ; i < N ; i++)
-		data[i] = ST - (float)rand()/RAND_MAX * pow(-1,(int)rand());
-		//data[i] = ((float)rand())/RAND_MAX*1000-((float)rand())/RAND_MAX;
-
+	for(int i = 0 ; i < N ; i++){
+		//data[i] = ST - (float)rand()/RAND_MAX * pow(-1,(int)rand());
+		data[i] = ((float)rand())/RAND_MAX*1000;
+		//printf("data[i]: %f\n", data[i]);
+	}
 	//average
 	avg = makeAverage(data, N);
+	startTime = clock();
 	var1 = makeVar1(data, N);
+   endTime = clock();
+	runtime = (float)(endTime-startTime)/(CLOCKS_PER_SEC);
+	printf("makeVar1: %f milli sec\n", runtime);
+	startTime = clock();
 	var2 = makeVar2(data, N, avg);
-
-//	for(int i = 0 ; i < N ; i++)
-//		printf("%d: data[i] = %f\n", i,data[i]);
+   endTime = clock();
+	runtime = (float)(endTime-startTime)/(CLOCKS_PER_SEC);
+	printf("makeVar2: %f milli sec\n", runtime);
 
 	printf("avg: %f, var1: %f, var2: %f\n", avg, var1, var2);
  }
@@ -56,7 +63,7 @@ float makeVar2(float data[], int cnt, float avg)
 {
 	float total=0;
 	for(int i = 0 ; i < cnt; i++){
-		total += (data[i] - avg) * (data[i] - avg);
+		total += ((data[i] - avg) * (data[i] - avg));
 	}
 	return total / (cnt-1);
 }
