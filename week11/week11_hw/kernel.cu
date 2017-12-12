@@ -3,7 +3,6 @@
 #include "device_launch_parameters.h"
 
 #include <stdio.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <Windows.h>
@@ -92,7 +91,7 @@ typedef struct {
 } Array;
 
 
-#define MAX_N_ELEMENTS	(1 << 20)
+#define MAX_N_ELEMENTS	(1 << 25)
 
 void generate_random_float_array(float *array, int n) {
 
@@ -119,7 +118,7 @@ __global__ void CombineTwoArrraysKernel(Array A, Array B, Array C) {
 
 cudaError_t combine_two_arrays_GPU(const Array A, const Array B, Array C);
 
-int BLOCK_SIZE = 24;
+int BLOCK_SIZE = 32;
 
 int main()
 {
@@ -195,10 +194,12 @@ cudaError_t combine_two_arrays_GPU(const Array A, const Array B, Array C) {
 	CUDA_CALL(cudaMalloc(&d_C.elements, size))
 
 	// Assume that width and height are multiples of BLOCK SIZE.
-	CHECK_TIME_START_GPU()
+	
 	dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
 	dim3 dimGrid(A.width / dimBlock.x, A.height / dimBlock.y);
+	CHECK_TIME_START_GPU()
 	CombineTwoArrraysKernel <<< dimGrid, dimBlock >>> (d_A, d_B, d_C);
+	CHECK_TIME_END_GPU(device_time)
 
 	CUDA_CALL(cudaGetLastError())
 
@@ -206,7 +207,7 @@ cudaError_t combine_two_arrays_GPU(const Array A, const Array B, Array C) {
 	// any errors encountered during the launch.
 	CUDA_CALL(cudaDeviceSynchronize())
 	CUDA_CALL(cudaMemcpy(C.elements, d_C.elements, size, cudaMemcpyDeviceToHost))
-	CHECK_TIME_END_GPU(device_time)
+	
 
 	CHECK_TIME_DEST_GPU()
 
@@ -233,7 +234,7 @@ typedef struct {
 } Array;
 
 int n;
-#define BLOCK_SIZE 32
+#define BLOCK_SIZE 16
 const int ELEM_PER_VECTOR = 32;
 float (*pVecX)[ELEM_PER_VECTOR], (*pVecY)[ELEM_PER_VECTOR], (*pVecY_G)[ELEM_PER_VECTOR];
 float(*pMatA)[ELEM_PER_VECTOR];
@@ -321,13 +322,13 @@ void Mat_Vec_Multiply_GPU()
 	dim3 dimGrid(_pVecX.width/ dimBlock.x, _pVecX.height / dimBlock.y); //32 n
 	CHECK_TIME_START_GPU()
 	Mat_Vec_Multiply_Kernel <<< dimGrid, dimBlock >>> (_pVecX, _pMatA, _pVecY_G);
-
+	CHECK_TIME_END_GPU(device_time)
 	CUDA_CALL(cudaGetLastError())
 
 	// cudaDeviceSynchronize waits for the kernel to finish, and returns
 	// any errors encountered during the launch.
 	CUDA_CALL(cudaDeviceSynchronize())
-	CHECK_TIME_END_GPU(device_time)
+
 
 	CUDA_CALL(cudaMemcpy(pVecY_G, _pVecY_G.elements, n*ELEM_PER_VECTOR, cudaMemcpyDeviceToHost))
 	
@@ -349,19 +350,17 @@ int main()
 	CHECK_TIME_START;
 	Mat_Vec_Multiply();
 	CHECK_TIME_END(compute_time);
-
 	printf("***CPU C[10] = %.3f/ Time taken = %.6fms\n", pVecY[0][0], compute_time);
 	Mat_Vec_Multiply_GPU();
 	printf("***GPU C[10] = %.3f/ Time taken = %.6fms\n", pVecY_G[0][0], device_time);
-
-	
+		
 }
 
 
 #endif
 
 #if prac==3
-#define BLOCK_SIZE 32
+#define BLOCK_SIZE 8
 #define N 67108864 // 8192 * 8192 = 2^13 * 2^13
 
 int Fibonacci(int n) {
@@ -419,8 +418,8 @@ void Fibonacci_GPU(int *x, int *y)
 	}
 
 	int *_y, *_x;
-	size_t size = N;
-	size_t rtsize = sqrt(float(n));
+	size_t size = N * sizeof(int);
+	size_t rtsize = (size_t)(sqrt((float)N));
 
 	CUDA_CALL(cudaMalloc(&_y, size))
 
@@ -428,13 +427,14 @@ void Fibonacci_GPU(int *x, int *y)
 	CUDA_CALL(cudaMemcpy(_x, x, size, cudaMemcpyHostToDevice))	
 
 	dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
-	dim3 dimGrid( rtsize / dimBlock.x,  rtsize / dimBlock.y);
+	//dim3 dimGrid( rtsize / dimBlock.x,  rtsize / dimBlock.y);
+	dim3 dimGrid( 1024 / dimBlock.x,  (N/1024) / dimBlock.y);
+	CHECK_TIME_START_GPU()
 	Fibonacci_Kernel <<< dimGrid, dimBlock >>> (_x, _y);
-
+	CHECK_TIME_END_GPU(device_time)
 	CUDA_CALL(cudaGetLastError())
 
 	CUDA_CALL(cudaDeviceSynchronize())
-	CHECK_TIME_END_GPU(device_time)
 
 	CUDA_CALL(cudaMemcpy(y, _y, size, cudaMemcpyDeviceToHost))
 	CHECK_TIME_DEST_GPU()
@@ -473,20 +473,18 @@ void main(void) {
 	y_g = (int *)malloc(sizeof(int)*n);
 
 	//CPU
+	
 	CHECK_TIME_START;
 	for (i = 0; i < n; i++) {
 		y_c[i] = Fibonacci(x[i]);
 	}
 	CHECK_TIME_END(compute_time);
-
-
+	fprintf(stdout, "\n***_CPU_ Time taken for computing %d Fibonacci numbers is %.6fms\n\n", n, compute_time);
+	
 	//GPU
 	Fibonacci_GPU(x, y_g);
 
-
-	fprintf(stdout, "\n***_CPU_ Time taken for computing %d Fibonacci numbers is %.6fms\n\n", n, compute_time);
-
-	//fprintf(stdout, "\n***_GPU_ Time taken for computing %d Fibonacci numbers is %.6fms\n\n", n, device_time);
+	fprintf(stdout, "\n***_GPU_ Time taken for computing %d Fibonacci numbers is %.6fms\n\n", n, device_time);
 
 	i = (int)(n * (rand() / (RAND_MAX + 1.0f)));
 	fprintf(stdout, "*** Fibonacci number of %d is (CPU :%d  , GPU :%d).\n\n", x[i], y_c[i], y_g[i]);
@@ -585,8 +583,9 @@ int main()
 
 #if prac==5
 
-#define N_EQUATIONS 2^20
-#define BLOCK_SIZE 32
+#define N_EQUATIONS 1048576
+#define BLOCK_SIZE 16
+float *A, *B, *C;
 
 void find_roots_CPU(float *A, float *B, float *C, float *X0, float *X1, float *FX0, float *FX1, int n) 
 { 
@@ -610,6 +609,8 @@ __global__ void find_roots_Kernel(float *A, float *B, float *C, float *X0, float
 	int row = threadIdx.y + blockDim.y * blockIdx.y;
 	int i = gridDim.x*blockDim.x*row + col;
 	
+	float a, b, c, d, x0, x1, tmp;
+
 	a = A[i]; b = B[i]; c = C[i]; 
 	d = sqrtf(b*b - 4.0f*a*c); 
 	tmp = 1.0f / (2.0f*a); 
@@ -634,8 +635,8 @@ void find_roots_GPU(float *A, float *B, float *C, float *X0, float *X1, float *F
 	//Array _pVecX, _pMatA, _pVecY_G;
 	float *_A, *_B, *_C;
 	float *_X0, *_X1, *_FX0, *_FX1;
-	size_t size = n;
-	size_t rtsize = sqrt(float(n));
+	size_t size = n*sizeof(float);
+	size_t rtsize = (size_t)sqrt(float(n));
 
 
 	CUDA_CALL(cudaMalloc(&_A, size))	
@@ -652,16 +653,18 @@ void find_roots_GPU(float *A, float *B, float *C, float *X0, float *X1, float *F
 
 	// Assume that width and height are multiples of BLOCK SIZE.
 	dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
-	dim3 dimGrid( rtsize/ dimBlock.x, rtsize / dimBlock.y);
+	//dim3 dimGrid( rtsize/ dimBlock.x, rtsize / dimBlock.y);
+	dim3 dimGrid( 512/ dimBlock.x, 2048 / dimBlock.y);
 
 	CHECK_TIME_START_GPU()
-	find_roots_Kernel <<< dimGrid, dimBlock >>> (_A, _B, _C, _X0, _X1, _FX0, _FX1);
+	find_roots_Kernel <<< dimGrid, dimBlock >>> (_A, _B, _C, _X0, _X1, _FX0, _FX1, n);
+	CHECK_TIME_END_GPU(device_time)
 	CUDA_CALL(cudaGetLastError())
 
 	// cudaDeviceSynchronize waits for the kernel to finish, and returns
 	// any errors encountered during the launch.
 	CUDA_CALL(cudaDeviceSynchronize())
-	CHECK_TIME_END_GPU(device_time)
+	
 
 	CUDA_CALL(cudaMemcpy(X0, _X0, size, cudaMemcpyDeviceToHost))
 	CUDA_CALL(cudaMemcpy(X1, _X1, size, cudaMemcpyDeviceToHost))
@@ -681,72 +684,74 @@ Error:
 	cudaFree(_FX1);
 }
 
-void read_poly(float *A, float *B, float *C, int *n){
-	FILE *fA, *fB, *fC;
-	int i, cnt;
+void read_poly(){
+	//float *_A, float *_B, float *_C
+	int i, n = N_EQUATIONS;
 
-	fA = fopen("A.bin", "r");
+	
+	FILE *fA = fopen("A.bin", "rb");
 	if(!fA){
 		printf("file open error\n");
 		exit(-1);
-	}
-	cnt = fread(n, 4, 1, fA);
-	A = (float*)malloc(sizeof(float)*n);
-	cnt = fread(A, 4, *n, fA);
+	}	
+	fread(&n, sizeof(float), 1, fA);
+	A = (float*)malloc(sizeof(float)*N_EQUATIONS);
+	fread(A, sizeof(float), N_EQUATIONS, fA);
 	fclose(fA);
+	
 
-	fB = fopen("B.bin", "r");
+	FILE *fB = fopen("B.bin", "rb");
 	if(!fB){
 		printf("file open error\n");
 		exit(-1);
 	}
-	cnt = fread(n, 4, 1, fB);
-	B = (float*)malloc(sizeof(float)*n);
-	cnt = fread(A, 4, *n, fB);
+	fread(&n, sizeof(float), 1, fB);
+	B = (float*)malloc(sizeof(float)*N_EQUATIONS);
+	fread(B, sizeof(float), n, fB);
 	fclose(fB);
 
-	fC = fopen("C.bin", "r");
-	if(!fA){
+	FILE *fC = fopen("C.bin", "rb");
+	if(!fC){
 		printf("file open error\n");
 		exit(-1);
 	}
-	cnt = fread(n, 4, 1, fC);
-	C = (float*)malloc(sizeof(float)*n);
-	cnt = fread(A, 4, *n, fC);
+	fread(&n, sizeof(float), 1, fC);
+	C = (float*)malloc(sizeof(float)*N_EQUATIONS);
+	fread(C, sizeof(float), n, fC);
 	fclose(fC);
 }
 
-void write_poly(float *X0. float *X1, float *FX0, float FX1, int n)
+void write_poly(float *X0, float *X1, float *FX0, float *FX1, int n)
 {
 	FILE *x0, *x1, *fx0, *fx1;
 	size_t cnt;
 
-	x0 = fopen("X0.bin", "w");
+	x0 = fopen("X0.bin", "wb");
 	cnt = fwrite (X0, 4, n, x0);
 	fclose(x0);
 
-	x1 = fopen("X1.bin", "w");
-	cnt = fwrite (X2, 4, n, x1);
+	x1 = fopen("X1.bin", "wb");
+	cnt = fwrite (X1, 4, n, x1);
 	fclose(x1);
 	
-	fx0 = fopen("FX0.bin", "w");
+	fx0 = fopen("FX0.bin", "wb");
 	cnt = fwrite (FX0, 4, n, fx0);
 	fclose(fx0);
 
-	fx1 = fopen("FX1.bin", "w");
+	fx1 = fopen("FX1.bin", "wb");
 	cnt = fwrite (FX1, 4, n, fx1);
 	fclose(fx1);
 
 }
 
 int main(){
-	float *A, *B, *C;
+//	float *A, *B, *C;
 	float *cX0, *cX1, *cFX0, *cFX1, *gX0, *gX1, *gFX0, *gFX1;
-	int n;
+	int n = N_EQUATIONS;
 
 	//read files
-	read_poly(A,B,C, &n);
-	printf("n = %d  file open ok.\n", N_EQUATIONS);
+	read_poly();
+	printf("n = %d  file open ok.\n", n);
 
 	//check CPU time
 	cX0 = (float*)malloc(sizeof(float)*n);
@@ -769,8 +774,8 @@ int main(){
 	printf("***GPU Time taken = %.6fms\n", device_time);
 
 	//check if same result
-	printf("CPU result X0[200], fX0[200] = %f, %f\n", cX0[200], cFX[200]);
-	printf("GPU result X0[200], fX0[200] = %f, %f\n", gX0[200], gFX[200]);
+	printf("CPU result X0[1048575], fX0[1048575] = %f, %f\n", cX0[1048575], cFX0[1048575]);
+	printf("GPU result X0[1048575], fX0[1048575] = %f, %f\n", gX0[1048575], gFX0[1048575]);
 
 	//save in file
 	write_poly(gX0, gX1, gFX0, gFX1, n);
