@@ -1,0 +1,8 @@
+4
+1.199931
+1.200762
+1.198188
+1.201169
+error: 0.000000
+problem file: ./Data/Hilbert_4.txt
+columnmajor

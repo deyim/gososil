@@ -1,0 +1,9 @@
+5
+1.200397
+1.193289
+1.227062
+1.161077
+1.218346
+error: 0.000000
+problem file: ./Data/Hilbert_5.txt
+columnmajor

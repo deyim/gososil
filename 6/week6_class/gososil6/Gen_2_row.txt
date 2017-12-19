@@ -1,0 +1,5 @@
+2
+0.218763
+-0.866386
+error: 1.969041
+problem file: ./Data/General_2.txt

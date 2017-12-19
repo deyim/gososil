@@ -1,0 +1,6 @@
+3
+2.805151
+0.409502
+-1.379471
+error: 2.036664
+problem file: ./Data/General_3.txt

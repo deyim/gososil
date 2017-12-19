@@ -1,0 +1,6 @@
+3
+1.200003
+1.199981
+1.200021
+error: 0.817272
+problem file: ./Data/Hilbert_3.txt

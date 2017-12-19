@@ -1,0 +1,5 @@
+2
+1.199997
+1.200005
+error: 0.665639
+problem file: ./Data/Hilbert_2.txt

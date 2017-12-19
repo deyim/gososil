@@ -1,0 +1,6 @@
+2
+1.200002
+1.200001
+error: 2.454129
+problem file: ./Data/General_2.txt
+columnmajor
